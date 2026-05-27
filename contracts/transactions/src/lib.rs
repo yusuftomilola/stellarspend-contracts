@@ -132,55 +132,6 @@ impl TransactionsContract {
         success
     }
 
-    /// Update the amount for a transaction (only transaction owner can update)
-    pub fn update_transaction_amount(env: Env, id: Symbol, caller: Address, amount: i128) -> bool {
-        caller.require_auth();
-        
-        if amount < storage::MIN_TRANSACTION_AMOUNT || amount > storage::MAX_TRANSACTION_AMOUNT {
-            panic_with_error!(&env, TransactionError::InvalidAmount);
-        }
-        
-        if !transaction_exists(&env, id.clone()) {
-            panic_with_error!(&env, TransactionError::TransactionNotFound);
-        }
-        
-        let success = storage::update_transaction_amount(&env, id.clone(), caller, amount);
-        
-        if success {
-            env.events().publish(
-                (symbol_short!("tx"), symbol_short!("amount_up")),
-                id.clone(),
-            );
-        }
-        
-        success
-    }
-    
-    /// Get the timestamp of a transaction
-    pub fn get_transaction_timestamp(env: Env, id: Symbol) -> Option<u64> {
-        get_transaction_timestamp(&env, id)
-    }
-    
-    /// Get a transaction by ID
-    pub fn get_transaction(env: Env, id: Symbol) -> Option<Transaction> {
-        get_transaction(&env, id)
-    }
-    
-    /// Get all transactions for a user
-    pub fn get_user_transactions(env: Env, user: Address) -> Vec<Transaction> {
-        get_user_transactions(&env, user)
-    }
-    
-    /// Get all transactions for a user (alias for get_user_transactions)
-    pub fn get_transactions_by_user(env: Env, user: Address) -> Vec<Transaction> {
-        get_user_transactions(&env, user)
-    }
-
-    /// Get all transactions for a user filtered by `tx_type`.
-    pub fn get_user_transactions_filtered(env: Env, user: Address, tx_type: Symbol) -> Vec<Transaction> {
-        storage::get_user_transactions_filtered(&env, user, tx_type)
-    }
-
     /// Get all transactions for a user, sorted by timestamp (descending)
     pub fn get_user_transactions_sorted(env: Env, user: Address) -> Vec<Transaction> {
         let mut transactions = get_user_transactions(&env, user);
@@ -221,6 +172,11 @@ impl TransactionsContract {
     pub fn get_total_income(env: Env) -> i128 {
         storage::get_total_income(&env)
     }
+
+    /// Get the total expense from all transactions
+    pub fn get_total_expense(env: Env) -> i128 {
+        storage::get_total_expense(&env)
+    }
     
     /// Get a paginated subset of all transactions.
     ///
@@ -245,11 +201,59 @@ impl TransactionsContract {
         
         success
     }
+    /// Update the amount for a transaction (only transaction owner can update)
+    pub fn update_transaction_amount(env: Env, id: Symbol, caller: Address, amount: i128) -> bool {
+        caller.require_auth();
+        
+        if amount < storage::MIN_TRANSACTION_AMOUNT || amount > storage::MAX_TRANSACTION_AMOUNT {
+            panic_with_error!(&env, TransactionError::InvalidAmount);
+        }
+        
+        if !transaction_exists(&env, id.clone()) {
+            panic_with_error!(&env, TransactionError::TransactionNotFound);
+        }
+        
+        let success = storage::update_transaction_amount(&env, id.clone(), caller, amount);
+        
+        if success {
+            env.events().publish(
+                (symbol_short!("tx"), symbol_short!("amount_up")),
+                id.clone(),
+            );
+        }
+        
+        success
+    }
     
     /// Get the admin address
     pub fn get_admin(env: Env) -> Option<Address> {
         env.storage().instance().get(&DataKey::Admin)
     }
+    /// Get the timestamp of a transaction
+    pub fn get_transaction_timestamp(env: Env, id: Symbol) -> Option<u64> {
+        get_transaction_timestamp(&env, id)
+    }
+    
+    /// Get a transaction by ID
+    pub fn get_transaction(env: Env, id: Symbol) -> Option<Transaction> {
+        get_transaction(&env, id)
+    }
+    
+    /// Get all transactions for a user
+    pub fn get_user_transactions(env: Env, user: Address) -> Vec<Transaction> {
+        get_user_transactions(&env, user)
+    }
+    
+    /// Get all transactions for a user (alias for get_user_transactions)
+    pub fn get_transactions_by_user(env: Env, user: Address) -> Vec<Transaction> {
+        get_user_transactions(&env, user)
+    }
+
+    /// Get all transactions for a user filtered by `tx_type`.
+    pub fn get_user_transactions_filtered(env: Env, user: Address, tx_type: Symbol) -> Vec<Transaction> {
+        storage::get_user_transactions_filtered(&env, user, tx_type)
+    }
+
 
     /// Check if a transaction exists
     pub fn transaction_exists(env: Env, id: Symbol) -> bool {

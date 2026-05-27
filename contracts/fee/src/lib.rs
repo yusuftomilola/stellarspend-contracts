@@ -8,34 +8,35 @@ mod events;
 mod reconciliation;
 mod storage;
 mod utils;
+mod fee_validation;
 mod validation;
 mod auth;
 
 #[cfg(test)]
 mod test;
 
-use soroban_sdk::{contract, contractimpl, panic_with_error, Address, Env, Symbol, Vec};
+use soroban_sdk::{contract, contractimpl, panic_with_error, Address, Env, Vec};
 
 use crate::decay::calculate_fee_decay;
 use crate::escrow::{
     collect_batch_to_escrow, collect_to_escrow, release_cycle_fees, rollover_cycle_fees,
 };
-use crate::events::{ConfigEvents, FeeEvents, TierEvents};
+use crate::events::{ConfigEvents, FeeEvents};
 use crate::reconciliation::reconcile;
 pub use crate::reconciliation::ReconciliationResult;
 use crate::storage::{
-    has_admin, is_valid_tier, read_admin, read_current_cycle, read_escrow_balance, read_fee_bps,
+    has_admin, read_admin, read_current_cycle, read_escrow_balance, read_fee_bps,
     read_last_active, read_locked, read_min_fee, read_pending_fees, read_token,
     read_total_batch_calls, read_total_collected, read_total_released, read_treasury,
-    read_user_tier, remove_user_tier, write_admin, write_current_cycle, write_fee_bps,
-    write_last_active, write_locked, write_min_fee, write_token, write_treasury, write_user_tier,
+    write_admin, write_current_cycle, write_fee_bps,
+    write_max_fee, read_max_fee,
+    write_last_active, write_locked, write_min_fee, write_token, write_treasury,
     DEFAULT_FEE_BPS, DEFAULT_MIN_FEE,
 };
 pub use crate::storage::{BatchFeeResult, DataKey, MAX_BATCH_SIZE, MAX_FEE_BPS};
-use crate::utils::format_amount;
 use crate::auth::require_admin;
-use crate::utils::compute_fee;
 use crate::validation::{validate_fee_bps_or_panic, validate_min_fee_or_panic, validate_max_fee_or_panic, validate_amount_positive_or_panic};
+
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 #[repr(u32)]
@@ -79,9 +80,7 @@ impl FeeContract {
         if initial_cycle == 0 {
             panic_with_error!(&env, FeeContractError::InvalidConfig);
         }
-        if !validate_fee_bps_or_panic(&env, fee_bps) {
-            panic_with_error!(&env, FeeContractError::InvalidConfig);
-        }
+        validate_fee_percentage_bounds(&env, fee_bps);
 
         write_admin(&env, &admin);
         write_token(&env, &token);
@@ -207,7 +206,7 @@ impl FeeContract {
         require_admin(&env, &_admin);
         Self::require_unlocked(&env);
 
-        validate_fee_bps_or_panic(&env, fee_bps);
+        validate_fee_percentage_bounds(&env, fee_bps);
 
         write_fee_bps(&env, fee_bps);
         FeeEvents::fee_bps_updated(&env, fee_bps);
@@ -336,6 +335,12 @@ impl FeeContract {
     fn require_unlocked(env: &Env) {
         if read_locked(env) {
             panic_with_error!(env, FeeContractError::Locked);
+        }
+    }
+
+    fn require_initialized(env: &Env) {
+        if !has_admin(env) {
+            panic!("Contract not initialized");
         }
     }
 

@@ -712,3 +712,32 @@ fn test_create_transaction_with_visibility_flag() {
     let tx_private = client.get_transaction(&tx_private_id).unwrap();
     assert_eq!(tx_private.is_public, false);
 }
+
+#[test]
+fn test_get_total_expense() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let admin = Address::generate(&env);
+    let contract_id = env.register(TransactionsContract, ());
+    let client = TransactionsContractClient::new(&env, &contract_id);
+    client.initialize(&admin);
+
+    let user = Address::generate(&env);
+    let to = Address::generate(&env);
+    let note = String::from_str(&env, "note");
+    let memo = String::from_str(&env, "memo");
+    let tags = Vec::new(&env);
+    let income = Symbol::new(&env, "income");
+    let expense = Symbol::new(&env, "expense");
+    let is_public = false;
+
+    // No transactions yet
+    assert_eq!(client.get_total_expense(), 0);
+
+    client.create_transaction(&user, &to, &200, &note, &memo, &tags, &income, &is_public);
+    client.create_transaction(&user, &to, &50, &note, &memo, &tags, &expense, &is_public);
+    client.create_transaction(&user, &to, &30, &note, &memo, &tags, &expense, &is_public);
+
+    // Only expense amounts should be summed
+    assert_eq!(client.get_total_expense(), 80);
+}
