@@ -196,6 +196,12 @@ impl TransactionsContract {
             env.events().publish(
                 (symbol_short!("tx"), symbol_short!("cleared")),
                 user,
+            );
+        }
+        
+        success
+    }
+    
     /// Update the amount for a transaction (only transaction owner can update)
     pub fn update_transaction_amount(env: Env, id: Symbol, caller: Address, amount: i128) -> bool {
         caller.require_auth();
@@ -224,9 +230,6 @@ impl TransactionsContract {
     pub fn get_admin(env: Env) -> Option<Address> {
         env.storage().instance().get(&DataKey::Admin)
     }
-
-        tx.export
-    }
     
     /// Get the timestamp of a transaction
     pub fn get_transaction_timestamp(env: Env, id: Symbol) -> Option<u64> {
@@ -251,71 +254,6 @@ impl TransactionsContract {
     /// Get all transactions for a user filtered by `tx_type`.
     pub fn get_user_transactions_filtered(env: Env, user: Address, tx_type: Symbol) -> Vec<Transaction> {
         storage::get_user_transactions_filtered(&env, user, tx_type)
-    }
-
-    /// Get all transactions for a user, sorted by timestamp (descending)
-    pub fn get_user_transactions_sorted(env: Env, user: Address) -> Vec<Transaction> {
-        let mut transactions = get_user_transactions(&env, user);
-        
-        // Simple bubble sort for demonstration (on-chain sorting can be expensive)
-        let n = transactions.len();
-        if n > 1 {
-            for i in 0..n {
-                for j in 0..n - i - 1 {
-                    let tx_j = transactions.get(j).unwrap();
-                    let tx_next = transactions.get(j + 1).unwrap();
-                    if tx_j.timestamp < tx_next.timestamp {
-                        transactions.set(j, tx_next);
-                        transactions.set(j + 1, tx_j);
-                    }
-                }
-            }
-        }
-        transactions
-    }
-    
-    /// Get the last (most recent) transaction for a user
-    pub fn get_last_transaction(env: Env, user: Address) -> Option<Transaction> {
-        get_last_transaction(&env, user)
-    }
-    
-    /// Get the total number of transactions recorded in the contract
-    pub fn get_total_transactions_count(env: Env) -> u64 {
-        get_total_transactions_count(&env)
-    }
-    
-    /// Get all transactions in the contract
-    pub fn get_all_transactions(env: Env) -> Vec<Transaction> {
-        get_all_transactions(&env)
-    }
-    
-    /// Get a paginated subset of all transactions.
-    ///
-    /// - `offset`: number of transactions to skip (0-based)
-    /// - `limit`:  maximum number of transactions to return (capped at 100)
-    pub fn get_transactions_paginated(env: Env, offset: u32, limit: u32) -> Vec<Transaction> {
-        get_transactions_paginated(&env, offset, limit)
-    }
-    
-    /// Clear all transactions for a user (only user can perform this action)
-    pub fn clear_user_transactions(env: Env, user: Address) -> bool {
-        user.require_auth();
-        
-        let success = clear_user_transactions(&env, user.clone());
-        
-        if success {
-            env.events().publish(
-                (symbol_short!("tx"), symbol_short!("cleared")),
-                user,
-            );
-        }
-        
-        success
-    }
-    
-    /// Get the admin address
-    pub fn get_admin(env: Env) -> Option<Address> {
-        env.storage().instance().get(&DataKey::Admin)
     }
 
     /// Check if a transaction exists
