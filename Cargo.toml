@@ -30,6 +30,7 @@ members = [
     "contracts/category-analytics",
     "contracts/users",
     "contracts/transactions",
+    "contracts/transaction-validation",
 ]
 
 [package]
