@@ -32,6 +32,10 @@ pub use crate::types::{
 };
 use crate::validation::validate_limit_request;
 
+// Add cross-contract imports for whitelist functionality
+use soroban_sdk::{Bytes, Symbol};
+use crate::cross_contract::DataKey as CrossContractDataKey;
+
 /// Error codes for the spending limits contract.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 #[repr(u32)]
@@ -276,6 +280,12 @@ impl SpendingLimitsContract {
             panic_with_error!(&env, SpendingLimitError::InvalidAmount);
         }
 
+        // Check if destination is whitelisted (spending whitelist)
+        // This prevents unauthorized destinations from receiving funds
+        if !Self::is_destination_whitelisted(env, user.clone()) {
+            panic_with_error!(&env, SpendingLimitError::Unauthorized);
+        }
+
         // Look up configured limit; if none, there is nothing to enforce.
         let mut limit: SpendingLimit = match env
             .storage()
@@ -431,6 +441,38 @@ impl SpendingLimitsContract {
         env.storage().instance().set(&DataKey::Admin, &new_admin);
     }
 
+    /// Adds a destination address to the spending whitelist.
+    /// Only admin can call this method.
+    pub fn whitelist_destination(env: Env, caller: Address, destination: Address) {
+        caller.require_auth();
+        Self::require_admin(&env, &caller);
+
+        env.storage()
+            .persistent()
+            .set(&CrossContractDataKey::Whitelist(destination.clone()), &true);
+    }
+
+    /// Removes a destination address from the spending whitelist.
+    /// Only admin can call this method.
+    pub fn remove_from_whitelist(env: Env, caller: Address, destination: Address) {
+        caller.require_auth();
+        Self::require_admin(&env, &caller);
+
+        env.storage()
+            .persistent()
+            .remove(&CrossContractDataKey::Whitelist(destination.clone()));
+    }
+
+    /// Checks if a destination address is whitelisted for receiving funds.
+    /// This is a public read-only method that can be called by anyone.
+    pub fn is_destination_whitelisted(env: Env, destination: Address) -> bool {
+        // Use the same whitelist storage pattern as cross-contract module
+        // Check if destination is in whitelist
+        env.storage()
+            .persistent()
+            .has(&CrossContractDataKey::Whitelist(destination.clone()))
+    }
+
     /// Returns the last created batch ID.
     pub fn get_last_batch_id(env: Env) -> u64 {
         env.storage()
@@ -466,6 +508,16 @@ impl SpendingLimitsContract {
         if *caller != admin {
             panic_with_error!(env, SpendingLimitError::Unauthorized);
         }
+    }
+
+    /// Checks if a destination address is whitelisted for receiving funds.
+    /// Uses the cross-contract whitelist functionality to determine authorization.
+    fn is_destination_whitelisted(env: &Env, destination: &Address) -> bool {
+        // Use the same whitelist storage pattern as cross-contract module
+        // Check if destination is in whitelist
+        env.storage()
+            .persistent()
+            .has(&CrossContractDataKey::Whitelist(destination.clone()))
     }
 }
 
