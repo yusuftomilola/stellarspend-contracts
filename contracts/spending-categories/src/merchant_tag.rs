@@ -2,20 +2,7 @@
 
 #![no_std]
 
-use soroban_sdk::{contracttype, panic_with_error, symbol_short, Address, Env, Symbol};
-
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-#[repr(u32)]
-pub enum MerchantTagError {
-    InvalidMerchant = 1,
-    Unauthorized = 2,
-}
-
-impl From<MerchantTagError> for soroban_sdk::Error {
-    fn from(e: MerchantTagError) -> Self {
-        soroban_sdk::Error::from_contract_error(e as u32)
-    }
-}
+use soroban_sdk::{contracttype, symbol_short, Address, Env, Symbol};
 
 #[contracttype]
 #[derive(Clone)]
@@ -36,7 +23,7 @@ pub fn get_merchant_category(env: &Env, merchant_id: Symbol) -> Option<Symbol> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use soroban_sdk::{testutils::Address as _, Env, symbol_short};
+    use soroban_sdk::{testutils::Address as _, symbol_short, Env};
 
     #[test]
     fn tag_and_retrieve_merchant() {
@@ -46,5 +33,12 @@ mod tests {
         tag_merchant(&env, &caller, symbol_short!("starbucks"), symbol_short!("food"));
         let cat = get_merchant_category(&env, symbol_short!("starbucks"));
         assert_eq!(cat, Some(symbol_short!("food")));
+    }
+
+    #[test]
+    fn unknown_merchant_returns_none() {
+        let env = Env::default();
+        let cat = get_merchant_category(&env, symbol_short!("unknown"));
+        assert_eq!(cat, None);
     }
 }
